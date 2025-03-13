@@ -1,35 +1,59 @@
-import { NextResponse } from "next/server";
-import User from "@/models/User";
-import { dbConnect } from "@/app/lib/mongodb";
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const { id } = params;
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+
+export async function PUT(req: NextRequest) {
+  const url = new URL(req.url);
+  const id = url.pathname.split("/").pop();
+  const { name, email, avatar } = await req.json();
+
+  console.log("User ID to update:", id);
+  console.log("New data:", { name, email, avatar });
+
+  if (!id || !name || !email) {
+    return NextResponse.json({ message: "User ID, name, or email is missing" }, { status: 400 });
+  }
 
   try {
-    await dbConnect();
+    // Update the user information
+    const user = await prisma.user.update({
+      where: { id: Number(id) },
+      data: { name, email, avatar },
+    });
 
-    // Parse the request body
-    const formData = await req.formData();
-    const name = formData.get("name");
-    const email = formData.get("email");
-    const avater = formData.get("avater");
+    console.log("User updated:", user);
 
-    // Find the user by ID
-    const user = await User.findById(id);
+    return NextResponse.json({ message: "User profile updated successfully" }, { status: 200 });
+  } catch (error) {
+    console.error("Error updating user profile:", error.message);
+    return NextResponse.json({ message: "Failed to update user profile", error: error.message }, { status: 500 });
+  }
+}
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+  const id = url.pathname.split("/").pop();
+
+  console.log("User ID to fetch:", id);
+
+  if (!id) {
+    return NextResponse.json({ message: "User ID is missing" }, { status: 400 });
+  }
+
+  try {
+    // Fetch the user information
+    const user = await prisma.user.findUnique({
+      where: { id: Number(id) },
+      select: { avatar: true }, // Only select the avatar field
+    });
+
     if (!user) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // Update user details
-    if (name) user.name = name;
-    if (email) user.email = email;
-
-    // Handle avatar upload
-    if (avater) user.avater = avater
-
-    await user.save();
+    console.log("User fetched:", user);
 
     return NextResponse.json(user, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ message: "Failed to update user" }, { status: 500 });
+    console.error("Error fetching user profile:", error.message);
+    return NextResponse.json({ message: "Failed to fetch user profile", error: error.message }, { status: 500 });
   }
 }

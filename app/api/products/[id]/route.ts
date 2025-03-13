@@ -1,66 +1,68 @@
-import { dbConnect } from "@/app/lib/mongodb";
-import Product from "@/models/Product";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { saveFileLocally } from "@/lib/fileUpload";
 
-export async function DELETE(req: NextRequest, { params }: { params: { id?: string} }) {
-  await dbConnect();
-  if (!params.id) {
-    return NextResponse.json({ message: "Invalid product ID or server error" }, { status: 400 });
-  }
-  try {
-      const product = await Product.deleteOne({_id: params.id})
-        console.log(product)
-      if (!product) {
-        return NextResponse.json({ message: "product not found" }, { status: 404 });
-      }
-      return NextResponse.json(product, { status: 200 });
-    } catch (error) {
-      return NextResponse.json({ message: "Invalid product ID or server error" }, { status: 400 });
-    }
-}
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  // Connect to the database
-  await dbConnect();
-
+export async function PUT(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   const { id } = params;
 
-  // Check if ID exists
-  if (!id) {
-    return NextResponse.json({ message: "Product ID is required!" }, { status: 400 });
+  try {
+    const { name, price, description, image, quantity } = await request.json();
+
+    // Validate input data
+    if (!name || !price || !image || quantity === undefined) {
+      return NextResponse.json(
+        { success: false, message: "Name, price, image, and quantity are required" },
+        { status: 400 }
+      );
+    }
+
+    // Update the product in the database
+    const updatedProduct = await prisma.product.update({
+      where: { id: Number(id) },
+      data: {
+        name,
+        price: parseFloat(price), // Convert price to a number
+        description,
+        image,
+        quantity: parseInt(quantity), // Convert quantity to a number
+      },
+    });
+
+    // Return success response
+    return NextResponse.json(
+      { success: true, message: "Product updated successfully", product: updatedProduct },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Error updating product:", error);
+    return NextResponse.json(
+      { success: false, message: "Failed to update product" },
+      { status: 500 }
+    );
   }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const { id } = params;
 
   try {
-    // Parse the request body
-    const body = await req.json();
+    // Delete the product from the database
+    await prisma.product.delete({
+      where: { id: Number(id) },
+    });
 
-    // Ensure required fields are present
-    if (!body.name || !body.image) {
-      return NextResponse.json({ message: "Product name and image are required!" }, { status: 400 });
-    }
-
-    // Find and update the Product in the database
-    const updatedProduct = await Product.findByIdAndUpdate(
-      id, // Use the ID from the URL params
-      {
-        $set: {
-          name: body.name,
-          description: body.description || "",
-          price: body.price || 0,
-          image: body.image, // Assuming image is URL or base64 string
-        },
-      },
-      { new: true } // Return the updated Product document
-    );
-
-    // Handle if Product was not found
-    if (!updatedProduct) {
-      return NextResponse.json({ message: "Product not found" }, { status: 404 });
-    }
-
-    // Return the updated Product data
-    return NextResponse.json(updatedProduct, { status: 200 });
+    return NextResponse.json({ message: "Product deleted successfully" }, { status: 200 });
   } catch (error) {
-    console.error("Error updating Product:", error);
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+    console.error("Error deleting product:", error);
+    return NextResponse.json(
+      { message: "Failed to delete product" },
+      { status: 500 }
+    );
   }
 }

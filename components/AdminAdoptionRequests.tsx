@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 type AdoptionRequest = {
-  _id: string;
+  id: number; // Changed from _id to id for PostgreSQL
   pet: { name: string; image: string };
   user: { name: string; email: string };
   message: string;
@@ -29,7 +29,7 @@ const AdminAdoptionRequests = () => {
   }, []);
 
   // Handle status update (approve or reject)
-  const handleStatusUpdate = async (requestId: string, status: string) => {
+  const handleStatusUpdate = async (requestId: number, status: string) => {
     try {
       const res = await fetch("/api/adoptionRequests", {
         method: "PUT",
@@ -38,11 +38,12 @@ const AdminAdoptionRequests = () => {
       });
 
       if (res.ok) {
+        location.reload()
         // Update the local state with the updated request
         const updatedRequest = await res.json();
         setRequests((prevRequests) =>
           prevRequests.map((request) =>
-            request._id === updatedRequest._id ? updatedRequest : request
+            request.id === updatedRequest.id ? updatedRequest : request
           )
         );
         alert(`Request ${status.toLowerCase()} successfully!`);
@@ -61,7 +62,7 @@ const AdminAdoptionRequests = () => {
       <div className="space-y-4">
         {requests.map((request) => (
           <div
-            key={request._id}
+            key={request.id} // Changed from _id to id
             className="bg-white p-4 rounded-lg shadow-lg"
           >
             <div className="flex items-center space-x-4">
@@ -96,13 +97,13 @@ const AdminAdoptionRequests = () => {
             </div>
             <div className="mt-4 flex space-x-2">
               <button
-                onClick={() => handleStatusUpdate(request._id, "Approved")}
+                onClick={() => handleStatusUpdate(request.id, "Approved")}
                 className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
               >
-                Approve
+                Approved
               </button>
               <button
-                onClick={() => handleStatusUpdate(request._id, "Rejected")}
+                onClick={() => handleStatusUpdate(request.id, "Rejected")}
                 className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
               >
                 Reject

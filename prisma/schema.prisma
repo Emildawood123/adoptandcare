@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://postgres:postgres@localhost:5432/petSite"
+}
+
+model User {
+  id                Int                 @id @default(autoincrement())
+  email             String              @unique
+  passwordHash      String
+  name              String?
+  phone             String?
+  address           String?
+  pets              String[]            // Assuming pets is an array of strings
+  avatar            String?
+  orders            Order[]
+  adoptionRequests  AdoptionRequest[]
+  vetConsultations  VetConsultation[]
+  cart              Cart?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+}
+
+model Pet {
+  id                Int                 @id @default(autoincrement())
+  name              String
+  image             String
+  age               Int
+  breed             String
+  description       String?
+  adoptionRequests  AdoptionRequest[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @default(now())
+  availableForAdoption    Boolean       @default(true)
+  vetConsultations  VetConsultation[]
+}
+
+model AdoptionRequest {
+  id                Int                 @id @default(autoincrement())
+  petId             Int
+  pet               Pet                 @relation(fields: [petId], references: [id])
+  userId            Int
+  user              User                @relation(fields: [userId], references: [id])
+  message           String
+  status            AdoptionRequestStatus @default(Pending)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @default(now())
+}
+
+enum AdoptionRequestStatus {
+  Pending
+  Approved
+  Rejected
+}
+
+model Product {
+  id                Int                 @id @default(autoincrement())
+  name              String
+  price             Float
+  description       String?
+  image             String
+  quantity          Int                 
+  cartItems         CartItem[]
+  orderItems        OrderItem[]         // Add this line to establish the relationship with OrderItem
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @default(now())
+}
+
+model Order {
+  id                Int                 @id @default(autoincrement())
+  userId            Int
+  user              User                @relation(fields: [userId], references: [id])
+  totalAmount       Float
+  status            OrderStatus         @default(Pending)
+  orderItems        OrderItem[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @default(now())
+}
+
+model OrderItem {
+  id                Int                 @id @default(autoincrement())
+  orderId           Int
+  order             Order               @relation(fields: [orderId], references: [id])
+  productId         Int
+  product           Product             @relation(fields: [productId], references: [id])
+  quantity          Int                 @default(1)
+  price             Float
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @default(now())
+}
+
+
+enum OrderStatus {
+  Pending
+  Processing
+  Shipped
+  Delivered
+  Cancelled
+}
+
+model VetConsultation {
+  id                Int                 @id @default(autoincrement())
+  userId            Int
+  user              User                @relation(fields: [userId], references: [id])
+  petId             Int?
+  pet               Pet?                 @relation(fields: [petId], references: [id])
+  requestedDate     DateTime
+  status            VetConsultationStatus @default(Pending)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @default(now())
+}
+
+enum VetConsultationStatus {
+  Pending
+  Approved
+  Rejected
+  Completed
+}
+
+model Cart {
+  id                Int                 @id @default(autoincrement())
+  userId            Int                 @unique
+  user              User                @relation(fields: [userId], references: [id])
+  cartItems         CartItem[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @default(now())
+}
+
+model CartItem {
+  id                Int                 @id @default(autoincrement())
+  cartId            Int
+  cart              Cart                @relation(fields: [cartId], references: [id])
+  productId         Int
+  product           Product             @relation(fields: [productId], references: [id])
+  quantity          Int                 @default(1)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @default(now())
+  @@unique([cartId, productId])
+}

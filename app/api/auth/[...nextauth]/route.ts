@@ -1,8 +1,10 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
-import  User  from "@/models/User";  // Adjust the path to your User schema
-import { dbConnect } from "@/app/lib/mongodb";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
 export const authOptions = {
   providers: [
     // Credentials authentication (email/password)
@@ -13,19 +15,44 @@ export const authOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        await dbConnect();
-        
-        const user = await User.findOne({ email: credentials?.email }).select("+password");
-        if (!user || !(await bcrypt.compare(credentials.password, user.password))) {
-          throw new Error("Invalid email or password");
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Email and password are required");
         }
 
-        return { id: user._id, name: user.name, email: user.email, phone: user.phoneNumber, address: user.address, pets: user.pets, avater: user.avater }; // Return user data
+        // Find the user in the PostgreSQL database using Prisma
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+        });
+
+        if (!user) {
+          throw new Error("User not found");
+        }
+
+        // Compare the provided password with the hashed password in the database
+        const isValidPassword = await bcrypt.compare(
+          credentials.password,
+          user.passwordHash
+        );
+
+        if (!isValidPassword) {
+          throw new Error("Invalid password");
+        }
+
+        // Return user data (excluding sensitive fields like passwordHash)
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          address: user.address,
+          pets: user.pets,
+          avatar: user.avatar,
+        };
       },
     }),
   ],
   session: {
-    strategy: "jwt",  // Store session as JWT
+    strategy: "jwt", // Store session as JWT
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -36,8 +63,8 @@ export const authOptions = {
         token.email = user.email;
         token.phone = user.phone;
         token.address = user.address;
-        token.pets = user.pets
-        token.avater = user.avater
+        token.pets = user.pets;
+
       }
       return token;
     },
@@ -47,15 +74,14 @@ export const authOptions = {
         session.user._id = token._id;
         session.user.name = token.name;
         session.user.email = token.email;
-        session.user.phone = token.phone
+        session.user.phone = token.phone;
         session.user.address = token.address;
-        session.user.pets = token.pets
-        session.avater = token.avater
+        session.user.pets = token.pets;
       }
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET,  // Store your secret in environment variables
+  secret: process.env.NEXTAUTH_SECRET, // Store your secret in environment variables
 };
 
 const handler = NextAuth(authOptions);

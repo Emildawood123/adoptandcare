@@ -1,27 +1,59 @@
+"use client";
+
 import { useEffect, useState } from "react";
-import EditPetModal from "@/components/editModel";
+import EditPetModal from "./EditPetModal"; // Ensure the correct import path
+import PetList from "./PetList"; // Ensure the correct import path
 
 type Pet = {
-  _id: string;
+  id: number;
   name: string;
   image: string;
   age: number;
   breed: string;
   description?: string;
+  availableForAdoption: boolean;
 };
 
+const defaultPets: Pet[] = [
+  {
+    id: 1,
+    name: "Buddy",
+    image: "https://via.placeholder.com/150",
+    age: 3,
+    breed: "Golden Retriever",
+    description: "A friendly and energetic dog.",
+    availableForAdoption: true,
+  },
+  {
+    id: 2,
+    name: "Mittens",
+    image: "https://via.placeholder.com/150",
+    age: 2,
+    breed: "Siamese Cat",
+    description: "A curious and playful cat.",
+    availableForAdoption: true,
+  },
+];
+
 const MyPets = ({ session }) => {
-  const [userPets, setUserPets] = useState<Pet[]>([]);
+  const [userPets, setUserPets] = useState<Pet[]>(defaultPets);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedPet, setSelectedPet] = useState("");
-  const [newPet, setNewPet] = useState({ name: "", image: "", description: "", age: "", breed: "" });
+  const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
+  const [newPet, setNewPet] = useState({
+    name: "",
+    image: "",
+    description: "",
+    age: "",
+    breed: "",
+  });
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
   // Fetch user's pets
   useEffect(() => {
     const fetchUserPets = async () => {
       try {
-        const res = await fetch(`/api/pets/${session?.user?._id}`);
+        const res = await fetch(`/api/pets/user/${session?.user?.id}`);
         if (!res.ok) throw new Error("Failed to fetch user pets");
         const data = await res.json();
         setUserPets(data);
@@ -30,10 +62,10 @@ const MyPets = ({ session }) => {
       }
     };
 
-    if (session?.user?._id) {
+    if (session?.user?.id) {
       fetchUserPets();
     }
-  }, [session?.user?._id]);
+  }, [session?.user?.id]);
 
   // Handle pet creation
   const handleCreatePet = async () => {
@@ -43,62 +75,107 @@ const MyPets = ({ session }) => {
     }
 
     setLoading(true);
-    const formData = new FormData();
-    formData.append("name", newPet.name);
-    formData.append("description", newPet.description);
-    formData.append("user", session?.user._id);
-    formData.append("age", newPet.age);
-    formData.append("breed", newPet.breed);
 
-    const fileBlob = await fetch(newPet.image)
-      .then((res) => res.blob())
-      .catch((error) => console.error("Error fetching image:", error));
+    try {
+      const formData = new FormData();
+      formData.append("name", newPet.name);
+      formData.append("description", newPet.description);
+      formData.append("age", newPet.age);
+      formData.append("breed", newPet.breed);
 
-    if (fileBlob) {
-      formData.append("file", fileBlob);
-    }
+      // Handle image upload
+      const fileBlob = await fetch(newPet.image)
+        .then((res) => res.blob())
+        .catch((error) => {
+          console.error("Error fetching image:", error);
+          throw error;
+        });
 
-    const response = await fetch("/api/pets", { method: "POST", body: formData });
+      if (fileBlob) {
+        formData.append("file", fileBlob);
+      }
 
-    if (response.ok) {
+      const response = await fetch("/api/pets", {
+        method: "POST",
+        body: formData, // Send FormData directly
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create pet: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log("Pet created:", data);
+
       alert("Pet created successfully!");
       setNewPet({ name: "", image: "", description: "", age: "", breed: "" });
       location.reload(); // Refresh to show the new pet
-    } else {
-      const error = await response.json();
-      alert(`Error: ${error.message || "Failed to create pet"}`);
+    } catch (error) {
+      console.error("Error creating pet:", error);
+      alert("An error occurred while creating the pet.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   // Handle pet deletion
-  const handleDeletePet = async (petId: string) => {
-    const response = await fetch(`/api/pets/${petId}/${session?.user?._id}`, { method: "DELETE" });
+  const handleDeletePet = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this pet?")) {
+      return;
+    }
 
-    if (response.ok) {
-      alert("Pet deleted successfully!");
-      setUserPets((prevPets) => prevPets.filter((pet) => pet._id !== petId));
-    } else {
-      const error = await response.json();
-      alert(`Error: ${error.message || "Failed to delete pet"}`);
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/pets/${id}`, {
+        method: "DELETE",
+      });
+
+      // Log the response for debugging
+      console.log("Response status:", response.status);
+      console.log("Response headers:", response.headers);
+      const responseText = await response.text();
+      console.log("Response body:", responseText);
+
+      if (response.ok) {
+        // Parse JSON only if the response is OK and has JSON content
+        if (response.headers.get("content-type")?.includes("application/json")) {
+          const data = JSON.parse(responseText);
+          alert("Pet deleted successfully!");
+          // Update the userPets state by removing the deleted pet
+          setUserPets((prevPets) => prevPets.filter((pet) => pet.id !== id));
+        } else {
+          alert("Unexpected response format from the server.");
+        }
+      } else {
+        alert(`Error: ${responseText || "Failed to delete pet"}`);
+      }
+    } catch (error) {
+      console.error("Error deleting pet:", error);
+      alert("An error occurred while deleting the pet.");
+    } finally {
+      setLoading(false);
     }
   };
 
   // Handle pet editing
-  const handleEditPet = (petId: string) => {
-    setSelectedPet(petId);
+  const handleEditPet = (pet: Pet) => {
+    setSelectedPet(pet);
     setIsModalOpen(true);
   };
 
   // Handle modal close
   const handleModalClose = () => {
     setIsModalOpen(false);
+    setSelectedPet(null);
   };
 
   // Handle modal confirm (after editing)
-  const handleModalConfirm = () => {
+  const handleModalConfirm = (updatedPet: Pet) => {
+    // Update the pet in the state
+    setUserPets((prevPets) =>
+      prevPets.map((pet) => (pet.id === updatedPet.id ? updatedPet : pet))
+    );
     handleModalClose();
-    location.reload(); // Refresh to show updated pet details
   };
 
   // Handle form input changes
@@ -116,6 +193,33 @@ const MyPets = ({ session }) => {
     reader.onload = () => {
       setNewPet((prev) => ({ ...prev, image: reader.result as string }));
     };
+  };
+
+  // Handle adoption request
+  const handleAdopt = async (petId: number) => {
+    if (!message) {
+      alert("Please enter a message");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/adoptionRequests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ petId, userId: session?.user?.id, message }),
+      });
+
+      if (res.ok) {
+        alert("Adoption request submitted!");
+        setMessage("");
+      } else {
+        const error = await res.json();
+        alert(`Error: ${error.message || "Failed to submit request"}`);
+      }
+    } catch (error) {
+      console.error("Error submitting adoption request:", error);
+      alert("An error occurred while submitting the request.");
+    }
   };
 
   return (
@@ -180,47 +284,13 @@ const MyPets = ({ session }) => {
       </div>
 
       {/* Display User's Pets */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {userPets.length > 0 ? (
-          userPets.map((pet) => (
-            <div
-              key={pet._id}
-              className="bg-white p-4 rounded-xl shadow-lg transform transition duration-300 hover:scale-105"
-            >
-              <div className="relative">
-                <img
-                  src={pet.image}
-                  alt={pet.name}
-                  className="w-full h-48 object-cover rounded-lg shadow-md"
-                />
-                <button
-                  onClick={() => handleDeletePet(pet._id)}
-                  className="absolute top-2 right-2 bg-red-500 text-white px-3 py-1 rounded-full text-xs opacity-90 hover:opacity-100 transition"
-                >
-                  ✖
-                </button>
-              </div>
-              <div className="mt-4">
-                <h3 className="text-xl font-semibold text-gray-800">{pet.name}</h3>
-                <p className="text-sm text-gray-600 mt-1">{pet.description}</p>
-                <div className="mt-4 flex justify-between items-center">
-                  <button
-                    onClick={() => handleEditPet(pet._id)}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-                  >
-                    Edit
-                  </button>
-                  <span className="text-sm text-gray-500">{pet.age} years old</span>
-                </div>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="col-span-full text-center py-8">
-            <p className="text-gray-500 text-lg">You have no pets yet! 🐾</p>
-          </div>
-        )}
-      </div>
+      <PetList
+        pets={userPets}
+        isAdmin={true}
+        handleDeletePet={handleDeletePet}
+        handleEditPet={handleEditPet}
+        session={session}
+      />
 
       {/* Edit Pet Modal */}
       <EditPetModal

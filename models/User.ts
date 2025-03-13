@@ -8,7 +8,7 @@ export interface IUser extends Document {
   address: string;
   phoneNumber: string;
   pets: Types.ObjectId[];
-  avater: string;
+  avatar: string;
 }
 
 export const UserSchema = new Schema<IUser>(
@@ -18,7 +18,7 @@ export const UserSchema = new Schema<IUser>(
     password: { type: String, required: true },
     address: { type: String, required: true },
     phoneNumber: { type: String, required: true },
-    avater: {type: String},
+    avatar: {type: String},
      pets: [{ type: Schema.Types.ObjectId, ref: "Pet" }],
   },
   { timestamps: true }

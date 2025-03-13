@@ -1,34 +1,19 @@
+"use client";
+
 import { useState } from "react";
-import { ReactNode } from "react";
-// ...
 
-
-const CreatePetForm = ({ newPet, handleChange, handleImageUpload, handleCreatePet, loading, children }) => {
-  const [isDragging, setIsDragging] = useState(false);
-
-  // Handle drag and drop for image upload
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      handleImageUpload({ target: { files: [file] } });
-    }
-  };
-
+const CreatePetForm = ({
+  newPet,
+  handleChange,
+  handleImageUpload,
+  handleCreatePet,
+  loading,
+  children, // Add children prop
+}) => {
   return (
-   <div className="max-w-7xl mx-auto p-6 bg-gray-50 rounded-lg shadow-lg">
-      <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">Pets</h2>
-      
+    <div className="max-w-7xl mx-auto p-6 bg-gray-50 rounded-lg shadow-lg">
+      <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">Add a New Pet</h2>
+
       {/* Pet Name */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-1">Pet Name</label>
@@ -71,39 +56,17 @@ const CreatePetForm = ({ newPet, handleChange, handleImageUpload, handleCreatePe
       {/* Image Upload */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-1">Pet Image</label>
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={`w-full p-6 border-2 border-dashed ${
-            isDragging ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-gray-50"
-          } rounded-lg text-center cursor-pointer transition-all`}
-        >
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="hidden"
-            id="image-upload"
-          />
-          <label htmlFor="image-upload" className="cursor-pointer">
-            {newPet.image ? (
-              <img
-                src={newPet.image}
-                alt="Preview"
-                className="w-full h-48 object-cover rounded-md mb-2"
-              />
-            ) : (
-              <div>
-                <p className="text-gray-500">
-                  Drag & drop an image or{" "}
-                  <span className="text-blue-600 hover:text-blue-500">click to upload</span>
-                </p>
-                <p className="text-sm text-gray-400 mt-1">(JPEG, PNG, or WEBP)</p>
-              </div>
-            )}
-          </label>
-        </div>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {newPet.image && (
+          <div className="mt-4">
+            <img src={newPet.image} alt="Preview" className="w-48 h-48 object-cover rounded-lg shadow-sm" />
+          </div>
+        )}
       </div>
 
       {/* Description */}
@@ -122,19 +85,14 @@ const CreatePetForm = ({ newPet, handleChange, handleImageUpload, handleCreatePe
       {/* Submit Button */}
       <button
         onClick={handleCreatePet}
-        className="w-full mb-3 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300"
+        className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300"
         disabled={loading}
       >
-        {loading ? (
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-            <span className="ml-2">Creating...</span>
-          </div>
-        ) : (
-          "Create Pet"
-        )}
+        {loading ? "Creating..." : "Create Pet"}
       </button>
-      { children}
+
+      {/* Render children */}
+      {children}
     </div>
   );
 };

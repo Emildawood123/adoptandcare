@@ -3,15 +3,22 @@ import { useEffect, useState } from "react";
 const EditProductModal = ({ isOpen, product, onClose, onConfirm }) => {
   const [updatedProduct, setUpdatedProduct] = useState({
     name: "",
-    description: "",
     price: "",
-    image: "",
+    description: "",
+    image: "", // Assuming you want to handle image uploads separately
+    quantity: 1, // Add quantity field
   });
 
   // Initialize the form with the product data when the modal opens
   useEffect(() => {
     if (product) {
-      setUpdatedProduct(product);
+      setUpdatedProduct({
+        name: product.name,
+        price: product.price,
+        description: product.description || "",
+        image: product.image || "", // Assuming the image is stored as a URL
+        quantity: product.quantity || 1, // Initialize quantity
+      });
     }
   }, [product]);
 
@@ -26,19 +33,25 @@ const EditProductModal = ({ isOpen, product, onClose, onConfirm }) => {
 
     const reader = new FileReader();
     reader.onload = () => {
-      setUpdatedProduct((prev) => ({ ...prev, image: reader.result as string }));
+      setUpdatedProduct((prev) => ({ ...prev, image: reader.result }));
     };
     reader.readAsDataURL(file);
   };
 
   const handleSubmit = async () => {
     try {
-      const response = await fetch(`/api/products/${product}`, {
+      const response = await fetch(`/api/products/${product.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(updatedProduct),
+        body: JSON.stringify({
+          name: updatedProduct.name,
+          price: parseFloat(updatedProduct.price), // Ensure price is a float
+          description: updatedProduct.description,
+          image: updatedProduct.image, // Include the image URL
+          quantity: parseInt(updatedProduct.quantity), // Ensure quantity is an integer
+        }),
       });
 
       if (response.ok) {
@@ -76,6 +89,28 @@ const EditProductModal = ({ isOpen, product, onClose, onConfirm }) => {
           placeholder="Product Name"
         />
 
+        {/* Price Input */}
+        <input
+          type="number"
+          name="price"
+          value={updatedProduct.price}
+          onChange={handleChange}
+          className="w-full p-2 mb-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Price"
+          step="0.01" // Allow decimal values for price
+        />
+
+        {/* Quantity Input */}
+        <input
+          type="number"
+          name="quantity"
+          value={updatedProduct.quantity}
+          onChange={handleChange}
+          className="w-full p-2 mb-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Quantity"
+          min="0" // Ensure quantity is non-negative
+        />
+
         {/* Description Input */}
         <textarea
           name="description"
@@ -85,23 +120,16 @@ const EditProductModal = ({ isOpen, product, onClose, onConfirm }) => {
           placeholder="Description"
         />
 
-        {/* Price Input */}
-        <input
-          type="number"
-          name="price"
-          value={updatedProduct.price}
-          onChange={handleChange}
-          className="w-full p-2 mb-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Price"
-        />
-
         {/* Image Upload */}
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleImageUpload}
-          className="w-full p-2 mb-2 border rounded-md"
-        />
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Product Image</label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="w-full p-2 border rounded-md"
+          />
+        </div>
 
         {/* Image Preview */}
         {updatedProduct.image && (
