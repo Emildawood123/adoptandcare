@@ -94,3 +94,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Failed to create order" }, { status: 500 });
   }
 }
+
+export async function PUT(req: NextRequest) {
+  try {
+    const { orderId, status } = await req.json();
+
+    if (!orderId || !status) {
+      return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
+    }
+
+    // Fetch the order and its items
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { items: true }, // assuming order.items contains { productId, quantity }
+    });
+
+    if (!order) {
+      return NextResponse.json({ message: "Order not found" }, { status: 404 });
+    }
+
+    // If status is not "pending", decrease product quantities
+    if (status !== "pending") {
+      for (const item of order.items) {
+        await prisma.product.update({
+          where: { id: item.productId },
+          data: {
+            quantity: {
+              decrement: item.quantity,
+            },
+          },
+        });
+      }
+    }
+
+    // Update the order status
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: { status },
+    });
+
+    return NextResponse.json(updatedOrder, { status: 200 });
+  } catch (e) {
+    return NextResponse.json({ message: e.message || "Server error" }, { status: 500 });
+  }
+}

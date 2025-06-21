@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getUserById } from "@/lib/db";
 
 export async function PUT(req: NextRequest) {
   const url = new URL(req.url);
@@ -56,4 +57,9 @@ export async function GET(req: NextRequest) {
     console.error("Error fetching user profile:", error.message);
     return NextResponse.json({ message: "Failed to fetch user profile", error: error.message }, { status: 500 });
   }
+}
+export default async function handler(req, res) {
+  const { id } = req.query;
+  const user = await getUserById(Number(id));
+  res.status(200).json(user);
 }

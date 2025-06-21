@@ -20,6 +20,8 @@ model User {
   adoptionRequests  AdoptionRequest[]
   vetConsultations  VetConsultation[]
   cart              Cart?
+  isVet             Boolean            @default(false)
+  isAdmin           Boolean            @default(false)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 }
@@ -102,15 +104,18 @@ enum OrderStatus {
 }
 
 model VetConsultation {
-  id                Int                 @id @default(autoincrement())
+  id                Int      @id @default(autoincrement())
   userId            Int
-  user              User                @relation(fields: [userId], references: [id])
+  petOwnerId        Int?
+  vetId             Int?
+  user              User     @relation(fields: [userId], references: [id])
+
   petId             Int?
-  pet               Pet?                 @relation(fields: [petId], references: [id])
+  pet               Pet?     @relation(fields: [petId], references: [id])
   requestedDate     DateTime
   status            VetConsultationStatus @default(Pending)
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now())
 }
 
 enum VetConsultationStatus {

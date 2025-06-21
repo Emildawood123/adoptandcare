@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
 // POST: Create a new product
@@ -90,6 +90,50 @@ export async function GET() {
     // Return error response
     return NextResponse.json(
       { success: false, message: "Failed to fetch products" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE: Delete a product by id (expects ?id=PRODUCT_ID in query)
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  const { id } = params;
+
+  try {
+    console.log(typeof id, "ID received:", id);
+    const productId = id;
+    if (!productId) {
+      return NextResponse.json(
+        { success: false, message: "Invalid product id" },
+        { status: 400 }
+      );
+    }
+
+    await prisma.product.delete({
+      where: { id: Number(productId) },
+    });
+
+    return NextResponse.json(
+      { success: true, message: "Product deleted successfully" },
+      { status: 200 }
+    );
+  } catch (error: any) {
+    // Log the error for debugging
+    console.error("Error deleting product:", error);
+
+    // Prisma foreign key error
+    if (
+      error.code === "P2003" ||
+      (error.message && error.message.includes("Foreign key constraint failed"))
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Cannot delete product: It is referenced in other records (e.g., orders or cart)." },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      { success: false, message: error.message || "Failed to delete product" },
       { status: 500 }
     );
   }

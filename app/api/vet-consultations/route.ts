@@ -1,21 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getUserById } from "@/lib/db";
 
+// Create a new vet consultation request
 export async function POST(req: NextRequest) {
+  // Log the request body for debugging
   try {
-    const { userId, requestedDate } = await req.json();
-
+    const { userId, requestedDate, vetId } = await req.json();
+    console.log(userId, requestedDate, vetId);
     // Validate the input
-    if (!userId  || !requestedDate) {
+    if (!userId || !requestedDate || !vetId) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
     }
 
-    // Create the vet consultation request
+    // Create the vet consultation request (no petOwnerId, no message)
     const vetConsultation = await prisma.vetConsultation.create({
       data: {
-        userId: Number(userId),
+        userId: userId,
         requestedDate: new Date(requestedDate),
         status: "Pending",
+        vetId: Number(vetId),
       },
     });
 
@@ -25,46 +29,52 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Failed to create vet consultation request" }, { status: 500 });
   }
 }
+
+// Get vet consultations, filtered by userId or vetId if provided
 export async function GET(req: NextRequest) {
   try {
-    // Fetch all vet consultation requests with related user and pet information
-    const vetConsultations = await prisma.vetConsultation.findMany({
-      include: {
-        user: true, // Include user information // Include pet information
-      },
+    const userId = req.nextUrl.searchParams.get("userId");
+
+
+
+    // If neither userId nor vetId is provided, return all consultations
+    var vetConsultations = await prisma.vetConsultation.findMany({ 
+      where: { vetId: Number(userId) },
     });
 
-    return NextResponse.json(vetConsultations, { status: 200 });
+    // Fetch user data for each consultation and merge
+    const consultationsWithUser = await Promise.all(
+      vetConsultations.map(async (consultation) => {
+        const user = await getUserById(consultation.userId);
+        return { ...consultation, user };
+      })
+    );
+
+    return NextResponse.json(consultationsWithUser, { status: 200 });
   } catch (error) {
     console.error("Error fetching vet consultation requests:", error);
     return NextResponse.json({ message: "Failed to fetch vet consultation requests" }, { status: 500 });
   }
 }
 
-export async function PUT(req: NextRequest) {
-  const url = new URL(req.url);
-  const id = url.pathname.split("/").pop();
-  const { status } = await req.json();
-
-  console.log("Vet Consultation ID to update:", id);
-  console.log("New status:", status);
-
-  if (!id || !status) {
-    return NextResponse.json({ message: "Vet Consultation ID or status is missing" }, { status: 400 });
-  }
-
+// Update vet consultation status by ID
+export async function PUT(req: NextRequest, { params }) {
   try {
-    // Update the vet consultation status
-    const vetConsultation = await prisma.vetConsultation.update({
+    const { id } = params; // Get the consultation ID from the URL
+    const { status } = await req.json();
+
+    if (!id || !status) {
+      return NextResponse.json({ message: "Missing consultation ID or status" }, { status: 400 });
+    }
+
+    const updated = await prisma.vetConsultation.update({
       where: { id: Number(id) },
       data: { status },
     });
 
-    console.log("Vet Consultation updated:", vetConsultation);
-
-    return NextResponse.json({ message: "Vet consultation status updated successfully" }, { status: 200 });
+    return NextResponse.json(updated, { status: 200 });
   } catch (error) {
-    console.error("Error updating vet consultation status:", error.message);
-    return NextResponse.json({ message: "Failed to update vet consultation status", error: error.message }, { status: 500 });
+    console.error("Error updating vet consultation status:", error);
+    return NextResponse.json({ message: "Failed to update vet consultation status" }, { status: 500 });
   }
 }

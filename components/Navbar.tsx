@@ -15,7 +15,6 @@ const Navbar = () => {
   const selectedPage = searchParams.get("name") || "Pets";
   const { data: session, status } = useSession();
   const isAdmin = session?.user.email === "admin@admin.com";
-
   // Define sections based on user role
   let sections = ["Pets", "Products", "My Orders"];
   if (isAdmin) {

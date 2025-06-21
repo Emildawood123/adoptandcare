@@ -6,9 +6,10 @@ const prisma = new PrismaClient();
 
 export async function POST(req: Request) {
   try {
-    const { name, email, password, address, phone } = await req.json();
+    // Accept isAdmin and isVet from the request body
+    const { name, email, password, address, phone, isAdmin = false, isVet = false } = await req.json();
 
-    console.log("Received data:", { name, email, password, address, phone });
+    console.log("Received data:", { name, email, password, address, phone, isAdmin, isVet });
 
     // Check if the user already exists
     const existingUser = await prisma.user.findUnique({
@@ -36,6 +37,8 @@ export async function POST(req: Request) {
         phone,
         address,
         avatar: "", // Default avatar (can be updated later)
+        isAdmin,    // <-- Save isAdmin
+        isVet,      // <-- Save isVet
       },
     });
 

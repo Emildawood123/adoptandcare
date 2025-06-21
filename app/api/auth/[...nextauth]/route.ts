@@ -38,7 +38,7 @@ export const authOptions = {
           throw new Error("Invalid password");
         }
 
-        // Return user data (excluding sensitive fields like passwordHash)
+        // Return user data (including isAdmin and isVet)
         return {
           id: user.id,
           name: user.name,
@@ -47,6 +47,8 @@ export const authOptions = {
           address: user.address,
           pets: user.pets,
           avatar: user.avatar,
+          isAdmin: user.isAdmin, // <-- add this
+          isVet: user.isVet,     // <-- add this
         };
       },
     }),
@@ -64,7 +66,9 @@ export const authOptions = {
         token.phone = user.phone;
         token.address = user.address;
         token.pets = user.pets;
-
+        token.avatar = user.avatar;
+        token.isAdmin = user.isAdmin; // <-- add this
+        token.isVet = user.isVet;     // <-- add this
       }
       return token;
     },
@@ -77,6 +81,9 @@ export const authOptions = {
         session.user.phone = token.phone;
         session.user.address = token.address;
         session.user.pets = token.pets;
+        session.user.avatar = token.avatar;
+        session.user.isAdmin = token.isAdmin; // <-- add this
+        session.user.isVet = token.isVet;     // <-- add this
       }
       return session;
     },
